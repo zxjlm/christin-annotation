@@ -131,14 +131,6 @@ export default ({labels, text, entities, deleteAnnotation, updateEntity, addEnti
         let start_ = [...preSelectionRange.toString()].length
         let end_ = start_ + [...range.toString()].length
 
-        // start = start_
-        // end = end_
-        // x = e.clientX || e.changedTouches[0].clientX
-        // y = e.clientY || e.changedTouches[0].clientY
-        // setStart(start_)
-        // setEnd(end_)
-        // setX(e.clientX || e.changedTouches[0].clientX)
-        // setY(e.clientY || e.changedTouches[0].clientY)
         return {start_, end_}
     }
     const validateSpan = (start_: number | undefined = 0, end_: number | undefined = 0) => {
@@ -168,8 +160,9 @@ export default ({labels, text, entities, deleteAnnotation, updateEntity, addEnti
         if (deleteElem.length !== 0) {
             let id_ = Number(deleteElem[0].name.replace('close', ''))
             deleteAnnotation(id_)
-        } else {
+        } else if (e.target.className === 'highlight__label') {
             console.log('open trigger', e)
+        } else {
             let {start_, end_} = setSpanInfo(e)
             if (validateSpan(start_, end_)) {
                 show(e, start_, end_)
@@ -190,7 +183,7 @@ export default ({labels, text, entities, deleteAnnotation, updateEntity, addEnti
     return <div className={"highlight-container highlight-container--bottom-labels"}>
         {renderChunks.map(chunk => {
             if (chunk.color) return <EntItem key={chunk.id} labels={labels} label={chunk.label} color={chunk.color}
-                                             content={chunk.text} deleteAnnotation={deleteAnnotation} item_id={chunk.id}
+                                             content={chunk.text} updateEntity={updateEntity} item_id={chunk.id}
                                              newline={true}/>
             return chunk.text
         })}

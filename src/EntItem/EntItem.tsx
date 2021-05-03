@@ -1,6 +1,8 @@
 import './index.css'
 import {CloseOutlined} from "@ant-design/icons";
 import {labelType} from "../App";
+import {Dropdown, Menu} from "antd";
+import {useState} from "react";
 
 interface EntItemProps {
     content: string
@@ -8,11 +10,12 @@ interface EntItemProps {
     color: string
     labels: labelType[]
     newline: boolean
-    deleteAnnotation: (annotationId: number) => void
+    "updateEntity": (labelId: number, annotationId: number) => void
     item_id: number | undefined
 }
 
-export default ({content, label, color, labels, newline, deleteAnnotation, item_id}: EntItemProps) => {
+export default ({content, label, color, labels, newline, updateEntity, item_id}: EntItemProps) => {
+    const [showMenu, setShowMenu] = useState(false);
 
     const idealColor = function (hexString: string) {
         const r = parseInt(hexString.substr(1, 2), 16)
@@ -28,10 +31,23 @@ export default ({content, label, color, labels, newline, deleteAnnotation, item_
     return <span className="highlight bottom" style={{borderColor: color}}>
             <span className="highlight__content">
                 {content}
-                <button type="button" className={'delete'} onClick={onClick} name={`close${item_id}`}><CloseOutlined/></button>
+                <button type="button" className={'delete'} onClick={onClick}
+                        name={`close${item_id}`}><CloseOutlined/></button>
             </span>
+        <Dropdown overlay={<Menu>
+            {labels.map(item => <Menu.Item key={item.id} onClick={() => {
+                if (item_id) {
+                    updateEntity(item.id, item_id)
+                }
+                setShowMenu(false)
+            }}>
+                {item.text}
+            </Menu.Item>)}
+        </Menu>} placement="bottomLeft" visible={showMenu}>
             <span data-label={label} className="highlight__label"
-                  style={{backgroundColor: color, color: idealColor(color)}}>
+                  style={{backgroundColor: color, color: idealColor(color)}} onClick={() => setShowMenu(true)}>
             </span>
+        </Dropdown>
+
         </span>
 }
