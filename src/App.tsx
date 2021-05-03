@@ -95,9 +95,6 @@ function App() {
 
     const [annotations, setAnnotations] = useState<annotationType[]>(annotationsTMP);
 
-    console.log('update', annotations)
-
-
     const removeEntity = (annotationId: number) => {
         let tmp = annotations.filter(item => item.id !== annotationId)
         setAnnotations(tmp)

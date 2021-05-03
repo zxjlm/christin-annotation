@@ -3,7 +3,7 @@ import {useEffect, useState} from "react";
 import EntItem from "../EntItem/EntItem";
 import 'antd/dist/antd.css';
 import './index.css'
-import {Button, Dropdown, Menu} from "antd";
+import {Dropdown, Menu} from "antd";
 
 interface EntItemBoxProps {
     "labels": labelType[]
@@ -25,21 +25,20 @@ interface chunkState {
 
 export default ({labels, text, entities, deleteAnnotation, updateEntity, addEntity}: EntItemBoxProps) => {
     const [renderChunks, setRenderChunks] = useState<chunkState[]>([]);
-    const [showMenu, setShowMenu] = useState(false);
-    const [x, setX] = useState(0);
-    const [y, setY] = useState(0);
-    const [start, setStart] = useState(0);
-    const [end, setEnd] = useState(0);
+    const [position, setPosition] = useState({start: 0, end: 0, x: 0, y: 0, showMenu: false});
+
+    console.log('update', entities)
+
 
     useEffect(() => {
-        let chunk = chunks()
-        setRenderChunks(chunk)
-        // document.addEventListener('mouseup',(e) => {debugger;console.log(e)})
+        setRenderChunks(chunks())
         let cls = document.getElementsByClassName("highlight-container highlight-container--bottom-labels")
-        if (cls)
-            cls[0].addEventListener('mouseup', open)
-        console.log('cls', cls)
+        cls[0].addEventListener('mouseup', handleOpen)
+        return () => {
+            cls[0].removeEventListener('mouseup', handleOpen)
+        }
     }, [entities]);
+
 
     const sortedEntities: () => annotationType[] = () => {
         return entities.slice().sort((a: { startOffset: number; }, b: { startOffset: number; }) => a.startOffset - b.startOffset)
@@ -76,7 +75,6 @@ export default ({labels, text, entities, deleteAnnotation, updateEntity, addEnti
         return chunks
     }
 
-
     const makeChunks = (text: string) => {
         const chunks = []
         const snippets = text.split('\n')
@@ -102,15 +100,17 @@ export default ({labels, text, entities, deleteAnnotation, updateEntity, addEnti
         })
         return chunks
     }
-    const show = (e: any) => {
+    const show = (e: any, start_: number, end_: number) => {
         e.preventDefault()
-        setShowMenu(true)
-        setX(e.clientX || e.changedTouches[0].clientX)
-        setY(e.clientY || e.changedTouches[0].clientY)
-        console.log('123')
-        // this.$nextTick(() => {
-        //     this.showMenu = true
-        // })
+        let tmp = {
+            start: start_,
+            end: end_,
+            x: e.clientX || e.changedTouches[0].clientX,
+            y: e.clientY || e.changedTouches[0].clientY,
+            showMenu: true
+        }
+        setPosition(tmp)
+        // setShowMenu(true)
     }
     const setSpanInfo = (e: any) => {
         let selection
@@ -120,9 +120,8 @@ export default ({labels, text, entities, deleteAnnotation, updateEntity, addEnti
         } else if (document.getSelection()) {
             selection = document.getSelection()
         }
-        if (!selection || e.target.className !== 'highlight-container highlight-container--bottom-labels') return {
-            start,
-            end
+        if (!selection || e.target.className !== 'highlight-container highlight-container--bottom-labels') {
+            return {start_: 0, end_: 0}
         }
 
         const range = selection.getRangeAt(0)
@@ -130,18 +129,25 @@ export default ({labels, text, entities, deleteAnnotation, updateEntity, addEnti
         preSelectionRange.selectNodeContents(e.target)
         preSelectionRange.setEnd(range.startContainer, range.startOffset)
         let start_ = [...preSelectionRange.toString()].length
-        let end_ = start + [...range.toString()].length
-        setStart(start_)
-        setEnd(end_)
+        let end_ = start_ + [...range.toString()].length
+
+        // start = start_
+        // end = end_
+        // x = e.clientX || e.changedTouches[0].clientX
+        // y = e.clientY || e.changedTouches[0].clientY
+        // setStart(start_)
+        // setEnd(end_)
+        // setX(e.clientX || e.changedTouches[0].clientX)
+        // setY(e.clientY || e.changedTouches[0].clientY)
         return {start_, end_}
     }
-    const validateSpan = (start_: number | undefined = start, end_: number | undefined = end) => {
+    const validateSpan = (start_: number | undefined = 0, end_: number | undefined = 0) => {
         if ((typeof start_ === 'undefined') || (typeof end_ === 'undefined') || (end_ === 0)) {
-            setShowMenu(false)
+            setPosition({...position, showMenu: false})
             return false
         }
         if (start_ === end_) {
-            setShowMenu(false)
+            setPosition({...position, showMenu: false})
             return false
         }
         for (const entity of entities) {
@@ -157,36 +163,45 @@ export default ({labels, text, entities, deleteAnnotation, updateEntity, addEnti
         }
         return true
     }
-    const open = (e: any) => {
-        let {start_, end_} = setSpanInfo(e)
-        if (validateSpan(start_, end_)) {
-            show(e)
+    const handleOpen = (e: any) => {
+        let deleteElem = e.path.filter((elem: any) => elem.className === 'delete')
+        if (deleteElem.length !== 0) {
+            let id_ = Number(deleteElem[0].name.replace('close', ''))
+            deleteAnnotation(id_)
+        } else {
+            console.log('open trigger', e)
+            let {start_, end_} = setSpanInfo(e)
+            if (validateSpan(start_, end_)) {
+                show(e, start_, end_)
+            }
         }
     }
-    const assignLabel = (labelId: number) => {
-        if (validateSpan()) {
-            addEntity(start, end, labelId)
-            setShowMenu(false)
-            setStart(0)
-            setEnd(0)
-        }
-    }
+    // const assignLabel = (labelId: number) => {
+    //     if (validateSpan()) {
+    //         addEntity(start, end, labelId)
+    //         setShowMenu(false)
+    //         // setStart(0)
+    //         // setEnd(0)
+    //         x = 0
+    //         y = 0
+    //     }
+    // }
 
     return <div className={"highlight-container highlight-container--bottom-labels"}>
         {renderChunks.map(chunk => {
             if (chunk.color) return <EntItem key={chunk.id} labels={labels} label={chunk.label} color={chunk.color}
-                                             content={chunk.text}
+                                             content={chunk.text} deleteAnnotation={deleteAnnotation} item_id={chunk.id}
                                              newline={true}/>
             return chunk.text
         })}
-        <Dropdown overlay={<Menu style={{position: 'fixed', top: `${y}px`, left: `${x}px`}}>
+        <Dropdown overlay={<Menu style={{position: 'fixed', top: `${position.y}px`, left: `${position.x}px`}}>
             {labels.map(item => <Menu.Item key={item.id} onClick={() => {
-                addEntity(start, start + end, item.id);
-                setShowMenu(false)
+                addEntity(position.start, position.end, item.id);
+                setPosition({...position, showMenu: false})
             }}>
                 {item.text}
             </Menu.Item>)}
-        </Menu>} placement="bottomLeft" visible={showMenu}>
+        </Menu>} placement="bottomLeft" visible={position.showMenu}>
             <div/>
         </Dropdown>
     </div>
